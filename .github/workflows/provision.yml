@@ -9,7 +9,12 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ECR_REPO: ${{ secrets.ECR_REPO }}
+
     steps:
+
+      - name: Debug ECR repo
+        run: echo $ECR_REPO
+
       - name: Checkout
         uses: actions/checkout@v3
 
