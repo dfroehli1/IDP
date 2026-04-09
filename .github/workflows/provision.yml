@@ -33,9 +33,7 @@ jobs:
 
       - name: Terraform Apply (infra)
         working-directory: ./terraform
-        run: terraform apply -auto-approve \
-          -var="bucket_name=${{ github.event.client_payload.bucket }}" \
-          -var="lambda_name=${{ github.event.client_payload.lambda }}"
+        run: terraform apply -auto-approve -var="bucket_name=${{ github.event.client_payload.bucket }}" -var="lambda_name=${{ github.event.client_payload.lambda }}"
 
       # ✅ Get ECR repo URL from Terraform output
       - name: Get ECR Repo URL
