@@ -7,14 +7,12 @@ on:
 jobs:
   terraform:
     runs-on: ubuntu-latest
+
     env:
       ECR_REGISTRY: 648597472360.dkr.ecr.us-east-1.amazonaws.com
       ECR_REPO_NAME: lambda-app
 
     steps:
-
-      - name: Show registry host only
-        run: echo $ECR_REPO | cut -d'/' -f1
 
       - name: Checkout
         uses: actions/checkout@v3
@@ -26,21 +24,36 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v1
-
-
-      - name: Build & Push Lambda Image
-        run: |
-          docker build -t lambda-app ./lambda/app
-          docker tag lambda-app:latest $ECR_REGISTRY/$ECR_REPO_NAME:latest
-          docker push $ECR_REGISTRY/$ECR_REPO_NAME:latest
-
+      # ✅ Terraform FIRST (creates ECR repo if defined there)
       - name: Terraform Init
         working-directory: ./terraform
         run: terraform init
 
-      - name: Terraform Apply
+      - name: Terraform Apply (infra)
+        working-directory: ./terraform
+        run: terraform apply -auto-approve \
+          -var="bucket_name=${{ github.event.client_payload.bucket }}" \
+          -var="lambda_name=${{ github.event.client_payload.lambda }}"
+
+      # ✅ Get ECR repo URL from Terraform output
+      - name: Get ECR Repo URL
+        working-directory: ./terraform
+        run: |
+          echo "ECR_REPO=$(terraform output -raw ecr_repo_url)" >> $GITHUB_ENV
+
+      # ✅ Login AFTER repo exists
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ✅ Build + push image
+      - name: Build & Push Lambda Image
+        run: |
+          docker build -t lambda-app ./lambda/app
+          docker tag lambda-app:latest $ECR_REPO:latest
+          docker push $ECR_REPO:latest
+
+      # ✅ Final Terraform apply (Lambda uses image)
+      - name: Terraform Apply (deploy lambda)
         working-directory: ./terraform
         run: terraform apply -auto-approve \
           -var="bucket_name=${{ github.event.client_payload.bucket }}" \
