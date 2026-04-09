@@ -8,12 +8,13 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
     env:
-      ECR_REPO: ${{ secrets.ECR_REPO }}
+      ECR_REGISTRY: 648597472360.dkr.ecr.us-east-1.amazonaws.com
+      ECR_REPO_NAME: lambda-app
 
     steps:
 
-      - name: Debug ECR repo
-        run: echo $ECR_REPO
+      - name: Show registry host only
+        run: echo $ECR_REPO | cut -d'/' -f1
 
       - name: Checkout
         uses: actions/checkout@v3
@@ -32,8 +33,8 @@ jobs:
       - name: Build & Push Lambda Image
         run: |
           docker build -t lambda-app ./lambda/app
-          docker tag lambda-app:latest $ECR_REPO:latest
-          docker push $ECR_REPO:latest
+          docker tag lambda-app:latest $ECR_REGISTRY/$ECR_REPO_NAME:latest
+          docker push $ECR_REGISTRY/$ECR_REPO_NAME:latest
 
       - name: Terraform Init
         working-directory: ./terraform
