@@ -57,7 +57,4 @@ jobs:
       # ✅ Final Terraform apply (Lambda uses image)
       - name: Terraform Apply (deploy lambda)
         working-directory: ./terraform
-        run: terraform apply -auto-approve \
-          -var="bucket_name=${{ github.event.client_payload.bucket }}" \
-          -var="lambda_name=${{ github.event.client_payload.lambda }}" \
-          -var="image_uri=${{ env.ECR_REPO }}:latest"
+        run: terraform apply -auto-approve -var="bucket_name=${{ github.event.client_payload.bucket }}" -var="lambda_name=${{ github.event.client_payload.lambda }}" -var="image_uri=${{ env.ECR_REPO }}:latest"
