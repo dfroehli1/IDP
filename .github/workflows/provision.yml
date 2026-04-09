@@ -24,7 +24,9 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      # ✅ Terraform FIRST (creates ECR repo if defined there)
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+)
       - name: Terraform Init
         working-directory: ./terraform
         run: terraform init
