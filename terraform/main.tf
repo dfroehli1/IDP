@@ -14,3 +14,8 @@ module "lambda" {
   bucket_name = module.s3.bucket_name
   s3_bucket_arn = module.s3.bucket_arn
 }
+
+
+resource "aws_ecr_repository" "lambda_repo" {
+  name = "lambda-app"
+}

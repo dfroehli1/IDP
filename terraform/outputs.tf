@@ -10,4 +10,6 @@ output "image_uri" {
   description = "image_uri"
   value       = module.image_uri
 }
-
+output "ecr_repo_url" {
+  value = aws_ecr_repository.lambda_repo.repository_url
+}
