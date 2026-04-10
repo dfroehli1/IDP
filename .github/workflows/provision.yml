@@ -5,63 +5,97 @@ on:
     types: [provision]
 
 jobs:
-  terraform:
+
+  infra:
     runs-on: ubuntu-latest
 
-    env:
-      ECR_REGISTRY: 648597472360.dkr.ecr.us-east-1.amazonaws.com
-      ECR_REPO_NAME: lambda-app
+    outputs:
+      ecr_repo: ${{ steps.out.outputs.ecr_repo }}
 
     steps:
+      - uses: actions/checkout@v3
 
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Init
         working-directory: ./terraform
         run: terraform init
 
-      - name: Terraform Apply (infra)
-        working-directory: ./terraform
-        run: terraform apply -auto-approve -var="bucket_name=${{ github.event.client_payload.bucket }}" -var="lambda_name=${{ github.event.client_payload.lambda }}"
-   
-      - name: Show Terraform Outputs
-        working-directory: ./terraform
-        run: terraform output
-
-      # ✅ Get ECR repo URL from Terraform output
-      - name: Get ECR Repo URL
+      # ✅ ONLY APPLY INFRA MODULE
+      - name: Terraform Apply Infra ONLY
         working-directory: ./terraform
         run: |
-          ECR_REPO=$(terraform output -raw ecr_repo_url)
-          if [ -z "$ECR_REPO" ]; then
-            echo "ECR_REPO is empty. Terraform output missing."
-            exit 1
-          fi
-          echo "ECR_REPO=$ECR_REPO" >> $GITHUB_ENV
+          terraform apply -auto-approve \
+            -target=module.infra \
+            -var="bucket_name=${{ github.event.client_payload.bucket }}" \
+            -var="lambda_name=${{ github.event.client_payload.lambda }}"
 
-      # ✅ Login AFTER repo exists
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v2
-
-      # ✅ Build + push image
-      - name: Build & Push Lambda Image
-        run: |
-          docker build -t lambda-app ./lambda/app
-          docker tag lambda-app:latest $ECR_REPO:latest
-          docker push $ECR_REPO:latest
-
-      # ✅ Final Terraform apply (Lambda uses image)
-      - name: Terraform Apply (deploy lambda)
+      - name: Capture ECR output
+        id: out
         working-directory: ./terraform
-        run: terraform apply -auto-approve -var="bucket_name=${{ github.event.client_payload.bucket }}" -var="lambda_name=${{ github.event.client_payload.lambda }}" -var="image_uri=${{ env.ECR_REPO }}:latest"
+        run: |
+          echo "ecr_repo=$(terraform output -raw ecr_repo_url)" >> $GITHUB_OUTPUT
+
+
+  build:
+    needs: infra
+    runs-on: ubuntu-latest
+
+    outputs:
+      image_uri: ${{ steps.img.outputs.image_uri }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & Push Image
+        id: img
+        run: |
+          docker build -t lambda-app ./terraform/modules/lambda/app
+          docker tag lambda-app:latest ${{ needs.infra.outputs.ecr_repo }}:latest
+          docker push ${{ needs.infra.outputs.ecr_repo }}:latest
+
+          echo "image_uri=${{ needs.infra.outputs.ecr_repo }}:latest" >> $GITHUB_OUTPUT
+
+
+  deploy:
+    needs: [infra, build]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: ./terraform
+        run: terraform init
+
+      # ✅ ONLY APPLY LAMBDA MODULE
+      - name: Terraform Apply Lambda ONLY
+        working-directory: ./terraform
+        run: |
+          terraform apply -auto-approve \
+            -target=module.lambda \
+            -var="bucket_name=${{ github.event.client_payload.bucket }}" \
+            -var="lambda_name=${{ github.event.client_payload.lambda }}" \
+            -var="image_uri=${{ needs.build.outputs.image_uri }}"

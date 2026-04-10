@@ -1,21 +1,16 @@
-provider "aws" {
-  region = var.region
-}
+module "infra" {
+  source = "./modules/infra"
 
-module "s3" {
-  source      = "./modules/s3"
-  bucket_name = var.bucket_name
+  bucket_name   = var.bucket_name
+  ecr_repo_name = var.ecr_repo_name
 }
 
 module "lambda" {
-  source        = "./modules/lambda"
-  function_name = var.lambda_name
-  image_uri     = var.image_uri
-  bucket_name = module.s3.bucket_name
-  s3_bucket_arn = module.s3.bucket_arn
-}
+  source = "./modules/lambda"
 
+  lambda_name     = var.lambda_name
+  image_uri       = var.image_uri
+  lambda_role_arn = var.lambda_role_arn
 
-resource "aws_ecr_repository" "lambda_repo" {
-  name = "lambda-app"
+  depends_on = [module.infra]
 }

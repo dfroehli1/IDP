@@ -8,7 +8,7 @@ s3 = boto3.client("s3")
 
 BUCKET_NAME = os.environ["BUCKET_NAME"]
 
-def handler(event, context):
+def lambda_handler(event, context):
     # Example event payload
     data = {
         "event_id": str(uuid.uuid4()),
