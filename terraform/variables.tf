@@ -7,7 +7,7 @@ variable "lambda_name" {
 }
 
 variable "image_uri" {
-  type = string
+  default = ""
 }
 
 variable "lambda_role_arn" {

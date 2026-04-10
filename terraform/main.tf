@@ -12,5 +12,7 @@ module "lambda" {
   image_uri       = var.image_uri
   lambda_role_arn = var.lambda_role_arn
 
+  count = var.image_uri == "" ? 0 : 1
+
   depends_on = [module.infra]
 }
