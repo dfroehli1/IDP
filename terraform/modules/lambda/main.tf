@@ -7,9 +7,9 @@ resource "aws_lambda_function" "this" {
 
   timeout     = 30
   memory_size = 512
-}
-environment {
-  variables = {
-    BUCKET_NAME = var.bucket_name
-  }
+
+  environment {
+    variables = {
+      BUCKET_NAME = var.bucket_name
+   }
 }
