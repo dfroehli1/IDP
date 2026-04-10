@@ -12,4 +12,5 @@ resource "aws_lambda_function" "this" {
     variables = {
       BUCKET_NAME = var.bucket_name
    }
+  }
 }
