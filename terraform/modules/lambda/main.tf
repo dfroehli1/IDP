@@ -23,7 +23,7 @@ resource "aws_lambda_function" "this" {
   package_type  = "Image"
   image_uri     = var.image_uri
 
-  role = aws_iam_role.lambda_exec.arn   # ✅ FIX HERE
+  role = aws_iam_role.lambda_exec.arn
 
   timeout     = 30
   memory_size = 512
