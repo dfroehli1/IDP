@@ -3,7 +3,7 @@ output "lambda_name" {
 }
 
 output "lambda_arn" {
-  value = aws_lambda_function.this.arn
+   value = length(module.lambda) > 0 ? module.lambda[0].lambda_arn : null
 }
 
 output "invoke_arn" {
