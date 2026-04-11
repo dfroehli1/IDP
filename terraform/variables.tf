@@ -11,7 +11,7 @@ variable "image_uri" {
 }
 
 variable "lambda_role_arn" {
-  type = string
+  default = ""
 }
 
 variable "ecr_repo_name" {
