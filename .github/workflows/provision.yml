@@ -120,5 +120,4 @@ jobs:
           terraform apply -auto-approve \
             -var="lambda_name=${{ github.event.client_payload.lambda_name }}" \
             -var="bucket_name=${{ github.event.client_payload.bucket_name }}" \
-            -var="image_uri=${{ needs.build.outputs.image_uri }}" \
-            -var="lambda_role_arn=${{ secrets.LAMBDA_ROLE_ARN }}"
+            -var="image_uri=${{ needs.build.outputs.image_uri }}"
