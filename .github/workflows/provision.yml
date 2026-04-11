@@ -1,11 +1,17 @@
-name: Provision Infrastructure
+name: Provision Infrastructure (IDP)
 
 on:
   repository_dispatch:
     types: [provision]
 
+env:
+  AWS_REGION: us-east-1
+
 jobs:
 
+# =========================
+# 1. INFRA STACK (S3, ECR, IAM)
+# =========================
   infra:
     runs-on: ubuntu-latest
 
@@ -13,36 +19,40 @@ jobs:
       ecr_repo: ${{ steps.out.outputs.ecr_repo }}
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
 
-      - uses: hashicorp/setup-terraform@v3
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
 
-      - name: Terraform Init
-        working-directory: ./terraform
+      - name: Terraform Init (Infra)
+        working-directory: ./terraform/infra
         run: terraform init
 
-      # ✅ ONLY APPLY INFRA MODULE
-      - name: Terraform Apply Infra ONLY
-        working-directory: ./terraform
+      - name: Terraform Apply (Infra)
+        working-directory: ./terraform/infra
         run: |
           terraform apply -auto-approve \
-            -target=module.infra \
-            -var="bucket_name=${{ github.event.client_payload.bucket }}" \
-            -var="lambda_name=${{ github.event.client_payload.lambda }}"
+            -var="bucket_name=${{ github.event.client_payload.bucket_name }}" \
+            -var="ecr_repo_name=${{ github.event.client_payload.app_name }}"
 
-      - name: Capture ECR output
+      - name: Capture ECR Output
         id: out
-        working-directory: ./terraform
+        working-directory: ./terraform/infra
         run: |
           echo "ecr_repo=$(terraform output -raw ecr_repo_url)" >> $GITHUB_OUTPUT
 
 
+# =========================
+# 2. BUILD & PUSH IMAGE
+# =========================
   build:
     needs: infra
     runs-on: ubuntu-latest
@@ -51,51 +61,64 @@ jobs:
       image_uri: ${{ steps.img.outputs.image_uri }}
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
 
-      - uses: aws-actions/amazon-ecr-login@v2
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build & Push Image
-        id: img
+      - name: Build Docker Image
         run: |
           docker build -t lambda-app ./terraform/modules/lambda/app
-          docker tag lambda-app:latest ${{ needs.infra.outputs.ecr_repo }}:latest
-          docker push ${{ needs.infra.outputs.ecr_repo }}:latest
 
-          echo "image_uri=${{ needs.infra.outputs.ecr_repo }}:latest" >> $GITHUB_OUTPUT
+      - name: Tag & Push Image
+        id: img
+        run: |
+          IMAGE_URI=${{ needs.infra.outputs.ecr_repo }}:latest
+
+          docker tag lambda-app:latest $IMAGE_URI
+          docker push $IMAGE_URI
+
+          echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
 
 
+# =========================
+# 3. LAMBDA STACK (DEPLOY)
+# =========================
   deploy:
     needs: [infra, build]
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
 
-      - uses: hashicorp/setup-terraform@v3
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
 
-      - name: Terraform Init
-        working-directory: ./terraform
+      - name: Terraform Init (Lambda)
+        working-directory: ./terraform/lambda
         run: terraform init
 
-      # ✅ ONLY APPLY LAMBDA MODULE
-      - name: Terraform Apply Lambda ONLY
-        working-directory: ./terraform
+      - name: Terraform Apply (Lambda)
+        working-directory: ./terraform/lambda
         run: |
           terraform apply -auto-approve \
-            -target=module.lambda \
-            -var="bucket_name=${{ github.event.client_payload.bucket }}" \
-            -var="lambda_name=${{ github.event.client_payload.lambda }}" \
-            -var="image_uri=${{ needs.build.outputs.image_uri }}"
+            -var="lambda_name=${{ github.event.client_payload.lambda_name }}" \
+            -var="bucket_name=${{ github.event.client_payload.bucket_name }}" \
+            -var="image_uri=${{ needs.build.outputs.image_uri }}" \
+            -var="lambda_role_arn=${{ secrets.LAMBDA_ROLE_ARN }}"
