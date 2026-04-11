@@ -16,5 +16,5 @@ variable "lambda_role_arn" {
 
 variable "ecr_repo_name" {
   type    = string
-  default = "lambda-app"
+  default = "idp-lambda"
 }
