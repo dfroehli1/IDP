@@ -59,6 +59,9 @@ def trigger_github_workflow(payload):
 # ----------------------------
 @app.post("/provision")
 def provision(request: ProvisionRequest):
+    
+    print("REQUEST RECEIVED:", request) 
+     
     payload = build_payload(request)
 
     status, text = trigger_github_workflow(payload)
