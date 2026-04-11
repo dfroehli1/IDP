@@ -33,11 +33,11 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Init (Infra)
-        working-directory: ./terraform
+        working-directory: ./terraform/infra
         run: terraform init
 
       - name: Terraform Apply (Infra)
-        working-directory: ./terraform
+        working-directory: ./terraform/infra
         run: |
           terraform apply -auto-approve \
             -var="bucket_name=${{ github.event.client_payload.bucket_name }}" \
@@ -45,7 +45,7 @@ jobs:
 
       - name: Capture ECR Output
         id: out
-        working-directory: ./terraform
+        working-directory: ./terraform/infra
         run: |
           echo "ecr_repo=$(terraform output -raw ecr_repo_url)" >> $GITHUB_OUTPUT
 
@@ -111,11 +111,11 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Init (Lambda)
-        working-directory: ./terraform
+        working-directory: ./terraform/lambda
         run: terraform init
 
       - name: Terraform Apply (Lambda)
-        working-directory: ./terraform
+        working-directory: ./terraform/lambda
         run: |
           terraform apply -auto-approve \
             -var="lambda_name=${{ github.event.client_payload.lambda_name }}" \
