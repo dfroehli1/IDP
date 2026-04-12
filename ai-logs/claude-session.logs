@@ -1,0 +1,187 @@
+The API Gateway setup is **complete and correctly wired**. All five required resources are present in `terraform/modules/lambda/main.tf`:
+
+| Resource | Status |
+|----------|--------|
+| `aws_apigatewayv2_api` (HTTP API) | present |
+| `aws_apigatewayv2_integration` (`AWS_PROXY` → Lambda) | present |
+| `aws_apigatewayv2_route` (`POST /events`) | present |
+| `aws_apigatewayv2_stage` (`$default`, `auto_deploy = true`) | present |
+| `aws_lambda_permission` (allows APIGW to invoke Lambda) | present |
+
+The `source_arn` on the permission (`execution_arn}/*/*/events`) correctly scopes to any stage/method on the `/events` path, and the `api_gateway_url` output at `modules/lambda/outputs.tf:14` appends `/events` to the stage invoke URL — so callers get the full usable URL.
+
+**What will break end-to-end (not API Gateway, but Lambda):**
+
+The Lambda IAM role only has `AWSLambdaBasicExecutionRole` (CloudWatch Logs). The handler tries to write to S3 but there is no `s3:PutObject` policy attached. The API Gateway will invoke the Lambda successfully, but the Lambda itself will fail with an `AccessDenied` error when calling `s3.put_object`.
+
+To fix it, add an inline policy to `terraform/modules/lambda/main.tf` under the IAM role:
+
+```hcl
+resource "aws_iam_role_policy" "s3_write" {
+  name = "${var.lambda_name}-s3-write"
+  role = aws_iam_role.lambda_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "s3:PutObject"
+      Resource = "arn:aws:s3:::${var.bucket_name}/events/*"
+    }]
+  })
+}
+```
+
+Want me to add that?
+It seems the write permission wasn't granted. Please approve the file edit when prompted, or let me know if you'd like me to describe the change instead.
+
+Here's exactly what gets added after the existing `aws_iam_role_policy_attachment` block:
+
+```hcl
+resource "aws_iam_role_policy" "lambda_s3_put" {
+  name = "${var.lambda_name}-s3-put"
+  role = aws_iam_role.lambda_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "s3:PutObject"
+      Resource = "arn:aws:s3:::${var.bucket_name}/events/*"
+    }]
+  })
+}
+```
+
+This:
+- Creates an inline policy attached directly to the Lambda execution role
+- Grants `s3:PutObject` scoped to only the `events/` prefix in the app bucket (not the entire bucket)
+- Uses `var.bucket_name` so it automatically targets the correct bucket per deployment
+I don't have enough context to know what you'd like me to add. Could you clarify what you're referring to?
+Please approve the edit. The resource I'm adding is:
+
+```hcl
+resource "aws_iam_role_policy" "s3_put" {
+  name = "${var.lambda_name}-s3-put"
+  role = aws_iam_role.lambda_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "s3:PutObject"
+      Resource = "arn:aws:s3:::${var.bucket_name}/events/*"
+    }]
+  })
+}
+```
+
+It goes right after the existing `aws_iam_role_policy_attachment.lambda_basic` resource (line 52–55). The `Resource` is scoped to only the `events/*` prefix — not the whole bucket — matching exactly what the handler writes to.
+It seems write permission to the IDP directory needs your explicit approval. You may have seen a permission prompt — please approve the write when it appears, or let me know if you'd like me to place the files elsewhere.
+
+In the meantime, here are the two complete test files ready to create:
+
+---
+
+**File 1: `/home/deb/IDP/terraform/modules/infra/infra.tftest.hcl`**
+
+Tests that the infra module creates an S3 bucket and ECR repo with the correct names and settings:
+
+```hcl
+mock_provider "aws" {}
+
+run "infra_resource_names_match_variables" {
+  command = plan
+
+  variables {
+    bucket_name   = "myapp-bucket"
+    ecr_repo_name = "myapp"
+  }
+
+  assert {
+    condition     = aws_s3_bucket.bucket.bucket == "myapp-bucket"
+    error_message = "S3 bucket name must equal var.bucket_name"
+  }
+
+  assert {
+    condition     = aws_ecr_repository.repo.name == "myapp"
+    error_message = "ECR repo name must equal var.ecr_repo_name"
+  }
+
+  assert {
+    condition     = aws_ecr_repository.repo.force_delete == true
+    error_message = "ECR repo must have force_delete = true so CI can destroy it cleanly"
+  }
+}
+```
+
+---
+
+**File 2: `/home/deb/IDP/terraform/modules/lambda/lambda.tftest.hcl`**
+
+Tests that the lambda module configures the function, IAM role, and API Gateway correctly:
+
+```hcl
+mock_provider "aws" {}
+
+run "lambda_config_and_iam_naming" {
+  command = plan
+
+  variables {
+    lambda_name = "myapp-lambda"
+    image_uri   = "123456789012.dkr.ecr.us-east-1.amazonaws.com/myapp:latest"
+    bucket_name = "myapp-bucket"
+  }
+
+  # Lambda function name matches the variable
+  assert {
+    condition     = aws_lambda_function.this.function_name == "myapp-lambda"
+    error_message = "Lambda function name must equal var.lambda_name"
+  }
+
+  # Timeout and memory are set to expected values
+  assert {
+    condition     = aws_lambda_function.this.timeout == 30
+    error_message = "Lambda timeout must be 30 seconds"
+  }
+
+  assert {
+    condition     = aws_lambda_function.this.memory_size == 512
+    error_message = "Lambda memory_size must be 512 MB"
+  }
+
+  # IAM role follows the {lambda_name}-role naming convention
+  assert {
+    condition     = aws_iam_role.lambda_exec.name == "myapp-lambda-role"
+    error_message = "IAM role name must be var.lambda_name + '-role'"
+  }
+
+  # API Gateway uses HTTP (not REST/WebSocket)
+  assert {
+    condition     = aws_apigatewayv2_api.this.protocol_type == "HTTP"
+    error_message = "API Gateway must use HTTP protocol type"
+  }
+
+  # Route is wired to POST /events
+  assert {
+    condition     = aws_apigatewayv2_route.post_events.route_key == "POST /events"
+    error_message = "API Gateway route key must be 'POST /events'"
+  }
+}
+```
+
+---
+
+**How to run them** (requires Terraform >= 1.7, no AWS credentials needed with `mock_provider`):
+
+```bash
+# Test 1 — infra module
+cd /home/deb/IDP/terraform/modules/infra
+terraform test
+
+# Test 2 — lambda module
+cd /home/deb/IDP/terraform/modules/lambda
+terraform test
+```
+
+Could you approve the write operations so I can create the files directly? Or if you prefer, you can paste the content above into the files manually.
