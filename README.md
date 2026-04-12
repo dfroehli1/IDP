@@ -70,35 +70,42 @@ The pipeline runs in three stages:
 
 ---
 
-# 🧱 Folder Structure
+# 4. Folder Structure
 
+IDP/
+├── CLAUDE.md
 ├── README.md
-── api
-│   ├── main.py
-│   ├── requirements.txt
-├── bootstrap
-│   ├── main.tf
-│   ├── outputs.tf
-│   └── variables.tf
-└── terraform
-    ├── infra
-    │   ├── main.tf
-    │   ├── outputs.tf
-    │   └── variables.tf
-    ├── lambda
-    │   ├── main.tf
-    │   ├── outputs.tf
-    │   └── variables.tf
-    └── modules
-        ├── infra
-        │   ├── main.tf
-        │   ├── outputs.tf
-        │   └── variables.tf
-        └── lambda
-            ├── app
-            │   ├── Dockerfile
-            │   └── handler.py
+├── .github/
+│   └── workflows/
+│       └── provision.yml        # CI/CD pipeline (3-job GitHub Actions workflow)
+├── ai-logs
+│   └── claude-session.logs
+├── api/
+│   ├── main.py                  # FastAPI app — POST /provision endpoint
+│   ├── requirements.txt         # Python dependencies (fastapi, uvicorn, requests, python-dotenv)
+│   └── .env                     # GITHUB_TOKEN — DO NOT COMMIT (already in .gitignore)
+├── bootstrap/
+│   ├── main.tf                  # Creates S3 state bucket + DynamoDB lock table
+│   ├── variables.tf
+│   └── outputs.tf
+└── terraform/
+    ├── infra/                   # Stack: provisions ECR repo + application S3 bucket
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   └── outputs.tf
+    ├── lambda/                  # Stack: deploys Lambda + API Gateway + IAM
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   └── outputs.tf
+    └── modules/
+        ├── infra/               # Reusable module: ECR + S3 resources
+        │   ├── main.tf
+        │   ├── variables.tf
+        │   └── outputs.tf
+        └── lambda/              # Reusable module: Lambda + API Gateway + IAM role
             ├── main.tf
+            ├── variables.tf
             ├── outputs.tf
-            └── variables.tf
-
+            └── app/
+                ├── Dockerfile   # AWS Lambda Python 3.11 base image
+                └── handler.py   # Lambda handler: stores event JSON to S3

@@ -47,6 +47,8 @@ IDP/
 ├── .github/
 │   └── workflows/
 │       └── provision.yml        # CI/CD pipeline (3-job GitHub Actions workflow)
+├── ai-logs
+│   └── claude-session.logs
 ├── api/
 │   ├── main.py                  # FastAPI app — POST /provision endpoint
 │   ├── requirements.txt         # Python dependencies (fastapi, uvicorn, requests, python-dotenv)
