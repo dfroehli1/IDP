@@ -46,6 +46,14 @@ Responsible for:
 
 # 🔄 CI/CD Pipeline (GitHub Actions)
 
+The pipeline provision.yml is triggered by a Curl command:
+
+curl -X POST http://localhost:8000/provision \
+  -H "Content-Type: application/json" \
+  -d '{
+    "app_name": "team-deb-service"
+  }'
+
 The pipeline runs in three stages:
 
 ## 1. Infra Provisioning
