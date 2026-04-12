@@ -86,7 +86,16 @@ jobs:
           docker tag lambda-app:latest $IMAGE_URI
           docker push $IMAGE_URI
 
-          echo "image_uri=$IMAGE_URI" >> $GITHUB_OUTPUT
+          # Use the immutable digest so Terraform always detects a change and
+          # updates the Lambda function, even when the tag name stays the same.
+          DIGEST=$(aws ecr describe-images \
+            --repository-name "${{ github.event.client_payload.app_name }}" \
+            --image-ids imageTag=latest \
+            --region us-east-1 \
+            --query 'imageDetails[0].imageDigest' \
+            --output text)
+
+          echo "image_uri=${{ needs.infra.outputs.ecr_repo }}@${DIGEST}" >> $GITHUB_OUTPUT
 
 
 # =========================
