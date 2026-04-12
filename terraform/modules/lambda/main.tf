@@ -66,9 +66,8 @@ resource "aws_iam_role_policy" "lambda_s3_put" {
       Action   = "s3:PutObject"
       Resource = "arn:aws:s3:::${var.bucket_name}/events/*"
     }]
-}
-
-
+  }]
+ 
 resource "aws_lambda_function" "this" {
   function_name = var.lambda_name
   package_type  = "Image"
