@@ -34,7 +34,7 @@ jobs:
 
       - name: Terraform Init (Infra)
         working-directory: ./terraform/infra
-        run: terraform init
+        run: terraform init -backend-config="key=infra/${{ github.event.client_payload.app_name }}/terraform.tfstate"
 
       - name: Terraform Apply (Infra)
         working-directory: ./terraform/infra
@@ -121,7 +121,7 @@ jobs:
 
       - name: Terraform Init (Lambda)
         working-directory: ./terraform/lambda
-        run: terraform init
+        run: terraform init -backend-config="key=lambda/${{ github.event.client_payload.app_name }}/terraform.tfstate"
 
       - name: Terraform Apply (Lambda)
         working-directory: ./terraform/lambda

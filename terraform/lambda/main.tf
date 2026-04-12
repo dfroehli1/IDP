@@ -7,10 +7,10 @@ terraform {
   }
   backend "s3" {
     bucket         = "team-deb-terraform-state"
-    key            = "lambda/terraform.tfstate"
     region         = "us-east-1"
     dynamodb_table = "idp-terraform-locks"
     encrypt        = true
+    # key is passed at init time: -backend-config="key=lambda/<app_name>/terraform.tfstate"
   }
 }
 
