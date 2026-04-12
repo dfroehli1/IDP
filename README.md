@@ -1,1 +1,96 @@
-# IDP
+# 🚀 IDP Terraform + AWS Infrastructure Pipeline
+
+This project provisions and deploys a serverless AWS-based application using Terraform and GitHub Actions. It follows a multi-stage Infrastructure-as-Code (IaC) pipeline with a bootstrap layer and application infrastructure layers.
+
+---
+
+# 🏗️ Architecture Overview
+
+The system is split into three layers:
+
+## 1. Bootstrap Layer (One-time setup)
+Responsible for creating shared Terraform infrastructure:
+
+- S3 bucket (Terraform state backend)
+- DynamoDB table (state locking)
+
+> This layer is only run when initializing the environment.
+
+---
+
+## 2. Infrastructure Layer (App Foundation)
+
+Managed via `modules/infra/`
+
+Responsible for application-level infrastructure:
+
+- ECR repository (Docker image storage)
+- S3 service bucket (application data)
+- IAM roles (future expansion)
+- Shared AWS resources for services
+
+---
+
+## 3. Lambda Deployment Layer
+
+Managed via `modules/lambda/`
+
+Responsible for:
+
+- AWS Lambda function
+- IAM execution role
+- Container-based deployment (ECR image)
+- Environment variables (e.g., S3 bucket access)
+
+---
+
+# 🔄 CI/CD Pipeline (GitHub Actions)
+
+The pipeline runs in three stages:
+
+## 1. Infra Provisioning
+- Provisions ECR + supporting infrastructure
+- Outputs ECR repository URL
+
+## 2. Build & Push
+- Builds Docker image for Lambda
+- Pushes image to ECR
+
+## 3. Lambda Deploy
+- Deploys Lambda using Terraform
+- Injects new image URI
+
+---
+
+# 🧱 Folder Structure
+
+├── README.md
+── api
+│   ├── main.py
+│   ├── requirements.txt
+├── bootstrap
+│   ├── main.tf
+│   ├── outputs.tf
+│   └── variables.tf
+└── terraform
+    ├── infra
+    │   ├── main.tf
+    │   ├── outputs.tf
+    │   └── variables.tf
+    ├── lambda
+    │   ├── main.tf
+    │   ├── outputs.tf
+    │   └── variables.tf
+    └── modules
+        ├── infra
+        │   ├── main.tf
+        │   ├── outputs.tf
+        │   └── variables.tf
+        └── lambda
+            ├── app
+            │   ├── Dockerfile
+            │   └── handler.py
+            ├── main.tf
+            ├── outputs.tf
+            └── variables.tf
+
