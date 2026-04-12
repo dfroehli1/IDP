@@ -14,9 +14,3 @@ variable "dynamodb_table_name" {
   type        = string
   default     = "idp-terraform-locks"
 }
-
-variable "ecr_repo_name" {
-  description = "ECR repository for Lambda container"
-  type        = string
-  default     = "idp-lambda"
-}

@@ -42,33 +42,4 @@ resource "aws_dynamodb_table" "tf_locks" {
   }
 }
 
-# ---------------------------
-# ECR repository for Lambda image
-# ---------------------------
-resource "aws_ecr_repository" "lambda_repo" {
-  name = var.ecr_repo_name
-}
 
-# ---------------------------
-# Optional: lifecycle policy for ECR
-# ---------------------------
-resource "aws_ecr_lifecycle_policy" "lambda_repo_policy" {
-  repository = aws_ecr_repository.lambda_repo.name
-
-  policy = jsonencode({
-    rules = [
-      {
-        rulePriority = 1
-        description  = "Expire untagged images"
-        selection = {
-          tagStatus   = "untagged"
-          countType   = "imageCountMoreThan"
-          countNumber = 10
-        }
-        action = {
-          type = "expire"
-        }
-      }
-    ]
-  })
-}

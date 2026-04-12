@@ -6,6 +6,3 @@ output "dynamodb_table_name" {
   value = aws_dynamodb_table.tf_locks.name
 }
 
-output "ecr_repository_url" {
-  value = aws_ecr_repository.lambda_repo.repository_url
-}

@@ -3,5 +3,6 @@ variable "bucket_name" {
 }
 
 variable "ecr_repo_name" {
-  type = string
+  type    = string
+  default = "idp-lambda"
 }

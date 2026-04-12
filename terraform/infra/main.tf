@@ -9,7 +9,7 @@ terraform {
     bucket         = "team-deb-terraform-state"
     key            = "infra/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "tf-locks"
+    dynamodb_table = "idp-terraform-locks"
     encrypt        = true
   }
 }
