@@ -36,6 +36,25 @@ jobs:
         working-directory: ./terraform/infra
         run: terraform init -backend-config="key=infra/${{ github.event.client_payload.app_name }}/terraform.tfstate"
 
+      - name: Import Existing Infra Resources
+        working-directory: ./terraform/infra
+        run: |
+          BUCKET_NAME="${{ github.event.client_payload.bucket_name }}"
+          ECR_REPO_NAME="${{ github.event.client_payload.app_name }}"
+
+          # Import S3 bucket if it already exists
+          if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
+            echo "Found existing S3 bucket '${BUCKET_NAME}' — importing."
+            terraform import "module.infra.aws_s3_bucket.bucket" "$BUCKET_NAME" 2>&1 || true
+          fi
+
+          # Import ECR repository if it already exists
+          if aws ecr describe-repositories --repository-names "$ECR_REPO_NAME" \
+              --region us-east-1 2>/dev/null; then
+            echo "Found existing ECR repository '${ECR_REPO_NAME}' — importing."
+            terraform import "module.infra.aws_ecr_repository.repo" "$ECR_REPO_NAME" 2>&1 || true
+          fi
+
       - name: Terraform Apply (Infra)
         working-directory: ./terraform/infra
         run: |
@@ -122,6 +141,71 @@ jobs:
       - name: Terraform Init (Lambda)
         working-directory: ./terraform/lambda
         run: terraform init -backend-config="key=lambda/${{ github.event.client_payload.app_name }}/terraform.tfstate"
+
+      - name: Import Existing API Gateway Resources
+        working-directory: ./terraform/lambda
+        run: |
+          LAMBDA_NAME="${{ github.event.client_payload.lambda_name }}"
+          API_NAME="${LAMBDA_NAME}-api"
+
+          # Look up existing API Gateway by name
+          API_ID=$(aws apigatewayv2 get-apis --region us-east-1 \
+            --query "Items[?Name=='${API_NAME}'].ApiId | [0]" \
+            --output text 2>/dev/null || echo "")
+
+          if [ -z "$API_ID" ] || [ "$API_ID" = "None" ]; then
+            echo "No existing API Gateway '${API_NAME}' found — will be created fresh."
+            exit 0
+          fi
+          echo "Found existing API Gateway '${API_NAME}': ${API_ID} — importing into state."
+
+          # Import each resource; 'already managed by Terraform' errors are benign
+          terraform import "module.lambda.aws_apigatewayv2_api.this" \
+            "$API_ID" 2>&1 || true
+
+          terraform import "module.lambda.aws_apigatewayv2_stage.default" \
+            "${API_ID}/\$default" 2>&1 || true
+
+          INTEGRATION_ID=$(aws apigatewayv2 get-integrations \
+            --api-id "$API_ID" --region us-east-1 \
+            --query "Items[0].IntegrationId" --output text 2>/dev/null || echo "")
+          if [ -n "$INTEGRATION_ID" ] && [ "$INTEGRATION_ID" != "None" ]; then
+            terraform import "module.lambda.aws_apigatewayv2_integration.lambda" \
+              "${API_ID}/${INTEGRATION_ID}" 2>&1 || true
+          fi
+
+          ROUTE_ID=$(aws apigatewayv2 get-routes \
+            --api-id "$API_ID" --region us-east-1 \
+            --query "Items[0].RouteId" --output text 2>/dev/null || echo "")
+          if [ -n "$ROUTE_ID" ] && [ "$ROUTE_ID" != "None" ]; then
+            terraform import "module.lambda.aws_apigatewayv2_route.post_events" \
+              "${API_ID}/${ROUTE_ID}" 2>&1 || true
+          fi
+
+          terraform import "module.lambda.aws_lambda_permission.apigw" \
+            "${LAMBDA_NAME}/AllowAPIGatewayInvoke" 2>&1 || true
+
+      - name: Import Existing Lambda and IAM Resources
+        working-directory: ./terraform/lambda
+        run: |
+          LAMBDA_NAME="${{ github.event.client_payload.lambda_name }}"
+          ROLE_NAME="${LAMBDA_NAME}-role"
+
+          # Import IAM role if it already exists
+          if aws iam get-role --role-name "$ROLE_NAME" 2>/dev/null; then
+            echo "Found existing IAM role '${ROLE_NAME}' — importing."
+            terraform import "module.lambda.aws_iam_role.lambda_exec" "$ROLE_NAME" 2>&1 || true
+            terraform import "module.lambda.aws_iam_role_policy_attachment.lambda_basic" \
+              "${ROLE_NAME}/arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole" \
+              2>&1 || true
+          fi
+
+          # Import Lambda function if it already exists
+          if aws lambda get-function --function-name "$LAMBDA_NAME" \
+              --region us-east-1 2>/dev/null; then
+            echo "Found existing Lambda function '${LAMBDA_NAME}' — importing."
+            terraform import "module.lambda.aws_lambda_function.this" "$LAMBDA_NAME" 2>&1 || true
+          fi
 
       - name: Terraform Apply (Lambda)
         working-directory: ./terraform/lambda
