@@ -54,6 +54,21 @@ resource "aws_iam_role_policy_attachment" "lambda_basic" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+
+resource "aws_iam_role_policy" "lambda_s3_put" {
+  name = "${var.lambda_name}-s3-put"
+  role = aws_iam_role.lambda_exec.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "s3:PutObject"
+      Resource = "arn:aws:s3:::${var.bucket_name}/events/*"
+    }]
+}
+
+
 resource "aws_lambda_function" "this" {
   function_name = var.lambda_name
   package_type  = "Image"
