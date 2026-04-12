@@ -121,3 +121,8 @@ jobs:
             -var="lambda_name=${{ github.event.client_payload.lambda_name }}" \
             -var="bucket_name=${{ github.event.client_payload.bucket_name }}" \
             -var="image_uri=${{ needs.build.outputs.image_uri }}"
+
+      - name: Print API Gateway URL
+        working-directory: ./terraform/lambda
+        run: |
+          echo "API Gateway endpoint: $(terraform output -raw api_gateway_url)"
