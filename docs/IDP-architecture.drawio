@@ -1,0 +1,192 @@
+<mxfile host="app.diagrams.net" version="21.0.0" type="device">
+  <diagram name="IDP Architecture" id="idp-architecture">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="1050" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- TITLE -->
+        <mxCell id="title" value="IDP — Infrastructure Deployment Platform" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="350" y="20" width="600" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- PROVISIONING PATH LABEL -->
+        <mxCell id="lbl-prov" value="① Provisioning Path" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="74" width="200" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- Developer -->
+        <mxCell id="developer" value="Developer" style="shape=mxgraph.basic.person;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="110" width="60" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- FastAPI Server -->
+        <mxCell id="fastapi" value="FastAPI Server&#xa;api/main.py&#xa;POST /provision" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="210" y="125" width="160" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- GitHub -->
+        <mxCell id="github" value="GitHub&#xa;dfroehli1/IDP&#xa;repository_dispatch" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="460" y="125" width="160" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Developer to FastAPI -->
+        <mxCell id="e1" value="POST /provision&#xa;{app_name}" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="developer" target="fastapi" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- FastAPI to GitHub -->
+        <mxCell id="e2" value="repository_dispatch&#xa;event: provision" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="fastapi" target="github" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- GITHUB ACTIONS SWIMLANE -->
+        <mxCell id="gha" value="GitHub Actions: .github/workflows/provision.yml" style="swimlane;startSize=30;fillColor=#f5f5f5;strokeColor=#444444;fontColor=#333333;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="260" width="940" height="180" as="geometry" />
+        </mxCell>
+
+        <!-- Job 1: infra -->
+        <mxCell id="job1" value="Job 1: infra&#xa;terraform/infra/&#xa;ECR + S3 bucket" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="gha">
+          <mxGeometry x="40" y="60" width="160" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Job 2: build -->
+        <mxCell id="job2" value="Job 2: build&#xa;docker build + push&#xa;to ECR (:latest)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="gha">
+          <mxGeometry x="390" y="60" width="160" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Job 3: deploy -->
+        <mxCell id="job3" value="Job 3: deploy&#xa;terraform/lambda/&#xa;Lambda + API GW + IAM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="gha">
+          <mxGeometry x="740" y="60" width="160" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Job1 to Job2 -->
+        <mxCell id="e3" value="ecr_repo output" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="job1" target="job2" parent="gha">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Job2 to Job3 -->
+        <mxCell id="e4" value="image_uri output" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="job2" target="job3" parent="gha">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- GitHub to GHA -->
+        <mxCell id="e5" value="triggers" style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;" edge="1" source="github" target="gha" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ECR Repository -->
+        <mxCell id="ecr" value="ECR Repository&#xa;{app_name}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="80" y="520" width="150" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- S3 App Bucket -->
+        <mxCell id="s3" value="S3 App Bucket&#xa;{app_name}-bucket" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="290" y="520" width="150" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- API Gateway -->
+        <mxCell id="apigw" value="API Gateway HTTP API&#xa;{app_name}-lambda-api&#xa;POST /events" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="510" y="520" width="170" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Lambda Function -->
+        <mxCell id="lambda" value="Lambda Function&#xa;{app_name}-lambda&#xa;(container image)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="740" y="520" width="160" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- IAM Role -->
+        <mxCell id="iam" value="IAM Role&#xa;{app_name}-lambda-role&#xa;+ s3:PutObject policy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="960" y="520" width="160" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Job1 creates ECR -->
+        <mxCell id="e6" value="creates" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;strokeColor=#82b366;fontSize=10;" edge="1" source="job1" target="ecr" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Job1 creates S3 -->
+        <mxCell id="e7" value="creates" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;strokeColor=#82b366;fontSize=10;" edge="1" source="job1" target="s3" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Job2 pushes to ECR -->
+        <mxCell id="e8" value="pushes :latest" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;strokeColor=#82b366;fontSize=10;" edge="1" source="job2" target="ecr" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Job3 creates API GW -->
+        <mxCell id="e9" value="creates" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;strokeColor=#82b366;fontSize=10;" edge="1" source="job3" target="apigw" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Job3 creates Lambda -->
+        <mxCell id="e10" value="creates" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;strokeColor=#82b366;fontSize=10;" edge="1" source="job3" target="lambda" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Job3 creates IAM -->
+        <mxCell id="e11" value="creates" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;strokeColor=#82b366;fontSize=10;" edge="1" source="job3" target="iam" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Lambda pulls image from ECR -->
+        <mxCell id="e12" value="pulls image" style="edgeStyle=orthogonalEdgeStyle;html=1;dashed=1;strokeColor=#999999;fontSize=10;" edge="1" source="lambda" target="ecr" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="820" y="690" />
+              <mxPoint x="155" y="690" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- RUNTIME PATH LABEL -->
+        <mxCell id="lbl-rt" value="② Runtime Path" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="730" width="200" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- End User -->
+        <mxCell id="enduser" value="End User / Client" style="shape=mxgraph.basic.person;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="775" width="60" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- End User to API GW -->
+        <mxCell id="e13" value="POST /events {payload}" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#0050EF;fontStyle=1;fontSize=10;" edge="1" source="enduser" target="apigw" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="90" y="860" />
+              <mxPoint x="595" y="860" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- API GW to Lambda -->
+        <mxCell id="e14" value="AWS_PROXY invoke" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#0050EF;fontSize=10;" edge="1" source="apigw" target="lambda" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Lambda to S3 -->
+        <mxCell id="e15" value="s3:PutObject events/{uuid}.json" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#0050EF;fontSize=10;" edge="1" source="lambda" target="s3" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="820" y="610" />
+              <mxPoint x="365" y="610" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- BOOTSTRAP SECTION -->
+        <mxCell id="bootstrap" value="Bootstrap (one-time manual setup)" style="swimlane;startSize=25;fillColor=#f5f5f5;strokeColor=#9673a6;fontColor=#333333;fontSize=11;fontStyle=3;" vertex="1" parent="1">
+          <mxGeometry x="40" y="900" width="380" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="bs1" value="S3 State Bucket&#xa;team-deb-terraform-state" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="bootstrap">
+          <mxGeometry x="20" y="30" width="150" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="bs2" value="DynamoDB Lock Table&#xa;idp-terraform-locks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="bootstrap">
+          <mxGeometry x="210" y="30" width="150" height="40" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
